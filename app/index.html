@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <!-- En el celular la app se dibuja a 590 px de ancho, igual que en la app Android -->
+  <meta name="viewport" id="vbViewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <script>
+    (function () {
+      try {
+        var m = Math.min(screen.width || 0, screen.height || 0);
+        if (m && m < 700) {
+          document.getElementById("vbViewport").setAttribute("content", "width=590, user-scalable=no, viewport-fit=cover");
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <title>VIBRAS</title>
+  <meta name="description" content="Reserva y paga tus clases de bachata y entérate de cada social de VIBRAS.">
+  <meta name="theme-color" content="#1C0930">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="VIBRAS">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="preconnect" href="https://script.google.com">
+  <style>
+    :root{ --noche:#1C0930; --uva:#2B0F45; --uva2:#391457; --uva3:#4A1D6E; --rosa:#EA3E7D; --rosa2:#FF7BAA; --texto:#FFF4FA; --texto2:#DCC6F0; }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html, body{ margin:0; height:100%; background:var(--noche); overflow:hidden; overscroll-behavior:none; }
+    body{ font-family:'Barlow', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color:var(--texto); }
+    [hidden]{ display:none !important; }
+
+    /* Marco: barra de estado (iPhone) + aviso de instalar + la app + zona del gesto de inicio */
+    #marco{
+      position:fixed; inset:0; display:flex; flex-direction:column;
+      padding-top:env(safe-area-inset-top, 0px); padding-bottom:env(safe-area-inset-bottom, 0px);
+      background:var(--noche);
+    }
+    #app{ flex:1 1 auto; width:100%; min-height:0; border:0; display:block; background:var(--uva); }
+
+    /* Aviso "Instala VIBRAS" (no tapa la app: la empuja hacia abajo) */
+    #instalar{
+      flex:0 0 auto; display:flex; align-items:center; gap:12px;
+      padding:10px 12px 10px 16px; background:var(--uva3); border-bottom:2px solid var(--rosa);
+      font-size:16px; line-height:1.3;
+    }
+    #instalar img{ width:40px; height:40px; border-radius:10px; flex:0 0 auto; }
+    #instalar p{ margin:0; flex:1 1 auto; color:var(--texto2); }
+    #instalar b{ color:#fff; }
+    #instalar .btn{ min-height:42px; padding:8px 16px; border:0; border-radius:12px; background:var(--rosa); color:#fff;
+      font-weight:700; font-size:16px; cursor:pointer; box-shadow:3px 3px 0 var(--noche); flex:0 0 auto; }
+    #instalar .x{ width:40px; height:40px; border:0; border-radius:50%; background:rgba(255,255,255,.1); color:#fff;
+      font-size:22px; cursor:pointer; flex:0 0 auto; }
+    .compartir-ios{ display:inline-block; width:18px; height:18px; vertical-align:-3px; }
+
+    /* Splash (igual al de la app Android) */
+    #splash{
+      position:fixed; inset:0; z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
+      background:radial-gradient(600px 420px at 50% 42%, var(--uva3), var(--uva) 55%, var(--noche));
+      transition:opacity .45s ease, visibility .45s;
+    }
+    #splash img{ width:min(70vw, 340px); animation:latido 1.4s ease-in-out infinite; }
+    #splash p{ margin:0; color:var(--texto2); font-weight:600; font-size:18px; }
+    #splash.fuera{ opacity:0; visibility:hidden; }
+    @keyframes latido{ 0%,100%{ transform:scale(1) rotate(-3deg); } 50%{ transform:scale(1.05) rotate(-3deg); } }
+
+    /* Sin conexión (igual a la app Android) */
+    #offline{
+      position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; padding:28px; text-align:center;
+      background:radial-gradient(600px 420px at 50% 38%, var(--uva3), var(--uva) 70%);
+    }
+    #offline .i{ width:96px; height:96px; margin:0 auto 18px; border-radius:50%; background:var(--uva2); border:3px solid var(--rosa);
+      display:flex; align-items:center; justify-content:center; }
+    #offline h1{ font-size:28px; margin:0 0 10px; color:var(--rosa2); }
+    #offline p{ color:var(--texto2); font-size:17px; line-height:1.45; margin:0 0 24px; max-width:420px; }
+    #offline button{ min-height:54px; padding:0 34px; border:0; border-radius:14px; background:var(--rosa); color:#fff;
+      font-size:18px; font-weight:700; box-shadow:4px 4px 0 var(--noche); cursor:pointer; }
+
+    #aviso{
+      position:fixed; left:50%; bottom:calc(110px + env(safe-area-inset-bottom, 0px)); transform:translateX(-50%); z-index:30;
+      max-width:min(92vw, 480px); padding:13px 18px; border-radius:14px; background:#FF5C70; color:#fff; font-weight:600; font-size:17px;
+      box-shadow:4px 4px 0 var(--noche);
+    }
+    @media (prefers-reduced-motion: reduce){ #splash img{ animation:none; } }
+  </style>
+</head>
+<body>
+  <div id="marco">
+    <div id="instalar" hidden role="region" aria-label="Instalar VIBRAS">
+      <img src="icons/icon-192.png" alt="">
+      <p id="instalarTexto"></p>
+      <button class="btn" id="instalarBtn" type="button" hidden>Instalar</button>
+      <button class="x" id="instalarCerrar" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <iframe id="app" title="VIBRAS"
+      allow="clipboard-write; web-share; fullscreen; autoplay; encrypted-media; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+
+  <div id="splash" aria-hidden="true">
+    <img src="logo.webp" alt="">
+    <p id="splashTexto">Calentando la pista…</p>
+  </div>
+
+  <div id="offline" hidden>
+    <div>
+      <div class="i">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF7BAA" stroke-width="2.2" stroke-linecap="round">
+          <path d="M2 8.5a15 15 0 0 1 20 0"/><path d="M5.5 12a10 10 0 0 1 13 0"/><path d="M9 15.5a5 5 0 0 1 6 0"/><path d="M12 19h.01"/>
+          <path d="M3 3l18 18" stroke="#FFFFFF"/>
+        </svg>
+      </div>
+      <h1>Sin conexión</h1>
+      <p>VIBRAS necesita internet para mostrar tus clases y pagos al día. Revisa tu señal; la app se recargará sola cuando vuelva.</p>
+      <button type="button" id="reintentar">Reintentar</button>
+    </div>
+  </div>
+
+  <div id="aviso" role="alert" hidden></div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    // ═══════════════════════ CONFIGURACIÓN ═══════════════════════
+    // URL /exec de la app web de VIBRAS (la misma de MainActivity.kt)
+    var EXEC = "https://script.google.com/macros/s/AKfycbyhYkNOQATge8V2iPh9F59IJiINHwGgWQJfD8vIZCEcc5lOjqECcFSyHovc7g4pODf-/exec";
+    // Cliente web de Google (proyecto VIBRAS → "VIBRAS Web")
+    var CLIENT_ID = "6892035273-1km0pqggtdgi9uq4jrcqepp6cgak94vd.apps.googleusercontent.com";
+    // Dirección EXACTA de esta página (registrada en Google Cloud como URI de redireccionamiento)
+    var URL_ESTA_APP = "https://feddeapps-ux.github.io/vibras/app/";
+    // ═════════════════════════════════════════════════════════════
+
+    var K_SESION = "VBW_SESION_V1";
+    var K_OAUTH = "VBW_OAUTH_V1";
+    var K_INSTALAR = "VBW_INSTALAR_CERRADO";
+    var frame = document.getElementById("app");
+    var appWin = null, appOrigen = "";
+    var listo = false, cargando = false;
+
+    function $(id) { return document.getElementById(id); }
+
+    function leer(k) { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
+    function escribir(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+
+    var avisoT = null;
+    function aviso(msg) {
+      var a = $("aviso");
+      a.textContent = msg; a.hidden = false;
+      clearTimeout(avisoT);
+      avisoT = setTimeout(function () { a.hidden = true; }, 5500);
+    }
+
+    // ───────── Splash ─────────
+    var splashT = null;
+    function ocultarSplash() {
+      clearTimeout(splashT);
+      $("splash").classList.add("fuera");
+    }
+    function mostrarSplash(txt) {
+      $("splashTexto").textContent = txt || "Calentando la pista…";
+      $("splash").classList.remove("fuera");
+      clearTimeout(splashT);
+      splashT = setTimeout(ocultarSplash, 12000);   // red de seguridad
+    }
+
+    // ───────── Cargar la app ─────────
+    function cargarApp(url) {
+      if (!navigator.onLine) { mostrarOffline(); return; }
+      cargando = true;
+      listo = false;
+      mostrarSplash(url && url.indexOf("idToken=") > 0 ? "Entrando con Google…" : "Calentando la pista…");
+      frame.src = url || EXEC;
+    }
+
+    // ───────── Sin conexión ─────────
+    function mostrarOffline() { $("offline").hidden = false; ocultarSplash(); }
+    function ocultarOffline() { $("offline").hidden = true; }
+    $("reintentar").addEventListener("click", function () {
+      if (!navigator.onLine) { aviso("Todavía no hay conexión."); return; }
+      ocultarOffline(); cargarApp(EXEC);
+    });
+    window.addEventListener("online", function () {
+      if (!$("offline").hidden) { ocultarOffline(); cargarApp(EXEC); }
+    });
+    window.addEventListener("offline", function () { if (!listo) mostrarOffline(); });
+
+    // ───────── Inicio de sesión con Google ─────────
+    // La página sale a Google y Google vuelve aquí con un ID token (#id_token=…).
+    // Ese token lo verifica Code.gs igual que en la app Android.
+    function azar() {
+      var a = new Uint8Array(16);
+      (window.crypto || window.msCrypto).getRandomValues(a);
+      return Array.prototype.map.call(a, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+    }
+    function iniciarGoogle() {
+      var estado = azar(), nonce = azar();
+      escribir(K_OAUTH, { estado: estado, nonce: nonce, t: Date.now() });
+      var p = {
+        client_id: CLIENT_ID, redirect_uri: URL_ESTA_APP, response_type: "id_token",
+        scope: "openid email profile", nonce: nonce, state: estado, prompt: "select_account"
+      };
+      var qs = Object.keys(p).map(function (k) { return encodeURIComponent(k) + "=" + encodeURIComponent(p[k]); }).join("&");
+      mostrarSplash("Conectando con Google…");
+      location.assign("https://accounts.google.com/o/oauth2/v2/auth?" + qs);
+    }
+    function datosToken(jwt) {
+      try {
+        var b = jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        while (b.length % 4) b += "=";
+        return JSON.parse(decodeURIComponent(escape(atob(b))));
+      } catch (e) { return null; }
+    }
+    // ¿Volvemos de Google?
+    function urlInicial() {
+      var h = location.hash ? location.hash.slice(1) : "";
+      if (!/(^|&)(id_token|error)=/.test(h)) return EXEC;
+      var params = {};
+      h.split("&").forEach(function (par) {
+        var i = par.indexOf("=");
+        if (i > 0) params[decodeURIComponent(par.slice(0, i))] = decodeURIComponent(par.slice(i + 1).replace(/\+/g, " "));
+      });
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+      var guardado = leer(K_OAUTH);
+      escribir(K_OAUTH, null);
+      if (params.error) {
+        if (params.error !== "access_denied") setTimeout(function () { aviso("Google: " + params.error); }, 1200);
+        return EXEC;
+      }
+      if (!guardado || params.state !== guardado.estado || Date.now() - guardado.t > 30 * 60000) {
+        setTimeout(function () { aviso("El inicio con Google expiró. Vuelve a intentarlo."); }, 1200);
+        return EXEC;
+      }
+      var tok = params.id_token, d = datosToken(tok);
+      if (!d || d.aud !== CLIENT_ID || d.nonce !== guardado.nonce) {
+        setTimeout(function () { aviso("La respuesta de Google no es válida. Vuelve a intentarlo."); }, 1200);
+        return EXEC;
+      }
+      return EXEC + "?idToken=" + encodeURIComponent(tok) + "&v=" + Date.now();
+    }
+
+    // ───────── Mensajes con la app (solo del dominio de Apps Script) ─────────
+    function esOrigenApp(o) { return /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/.test(String(o || "")); }
+    function aLaApp(msg) {
+      if (!appWin || !appOrigen) return;
+      try { appWin.postMessage(msg, appOrigen); } catch (e) {}
+    }
+    function irDesdeApp(url) {
+      url = String(url || "");
+      if (url.indexOf(EXEC) === 0) { cargarApp(url); return; }
+      if (/^https:\/\/accounts\.google\.com\//.test(url)) { location.assign(url); return; }
+      if (/^https:\/\//.test(url)) window.open(url, "_blank", "noopener");
+    }
+
+    window.addEventListener("message", function (e) {
+      if (!esOrigenApp(e.origin)) return;
+      var d = e.data;
+      if (!d || typeof d !== "object" || !d.vb) return;
+      appWin = e.source; appOrigen = e.origin;
+      switch (d.vb) {
+        case "hola":
+          aLaApp({ vb: "envoltorio", url: URL_ESTA_APP, sesion: leer(K_SESION) });
+          break;
+        case "listo":
+          listo = true; cargando = false;
+          ocultarSplash();
+          prepararAtras();
+          setTimeout(revisarInstalar, 1500);
+          break;
+        case "sesion":
+          escribir(K_SESION, (d.sesion && d.sesion.token) ? d.sesion : null);
+          break;
+        case "google":
+          iniciarGoogle();
+          break;
+        case "ir":
+          irDesdeApp(d.url);
+          break;
+        case "atrasRespuesta":
+          respuestaAtras(d);
+          break;
+      }
+    });
+
+    // ───────── Botón ATRÁS (Android / navegador): se le pregunta a la app ─────────
+    var atrasListo = false, atrasId = 0, atrasT = null, saliendo = false;
+    function prepararAtras() {
+      if (atrasListo) return;
+      atrasListo = true;
+      try { history.pushState({ vb: 1 }, ""); } catch (e) {}
+    }
+    window.addEventListener("popstate", function () {
+      if (!atrasListo || saliendo) return;
+      if (!appWin) { salir(); return; }
+      var id = ++atrasId;
+      aLaApp({ vb: "atras", id: id });
+      clearTimeout(atrasT);
+      atrasT = setTimeout(function () { if (id === atrasId) salir(); }, 900);
+    });
+    function respuestaAtras(d) {
+      if (Number(d.id) !== atrasId) return;
+      clearTimeout(atrasT);
+      atrasId++;
+      if (d.manejado) { try { history.pushState({ vb: 1 }, ""); } catch (e) {} }
+      else salir();
+    }
+    function salir() { saliendo = true; try { history.back(); } catch (e) {} }
+
+    // ───────── Instalar (Android, computador y iPhone) ─────────
+    var promptInstalar = null;
+    function instalada() {
+      return (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) || window.navigator.standalone === true;
+    }
+    function esIOS() {
+      var ua = navigator.userAgent || "";
+      return /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    }
+    function cerradoHace() { var t = leer(K_INSTALAR); return t ? Date.now() - t : Infinity; }
+    function revisarInstalar() {
+      if (instalada() || cerradoHace() < 7 * 86400000 || !listo) return;
+      if (promptInstalar) {
+        $("instalarTexto").innerHTML = "<b>Instala VIBRAS</b> en tu teléfono o computador y ábrela como una app.";
+        $("instalarBtn").hidden = false;
+        $("instalar").hidden = false;
+      } else if (esIOS()) {
+        $("instalarTexto").innerHTML = "<b>Instala VIBRAS:</b> toca " +
+          '<svg class="compartir-ios" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 11v9h14v-9"/></svg>' +
+          " <b>Compartir</b> y luego <b>«Agregar a inicio»</b>.";
+        $("instalarBtn").hidden = true;
+        $("instalar").hidden = false;
+      }
+    }
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      promptInstalar = e;
+      revisarInstalar();
+    });
+    window.addEventListener("appinstalled", function () { $("instalar").hidden = true; promptInstalar = null; });
+    $("instalarBtn").addEventListener("click", function () {
+      if (!promptInstalar) return;
+      promptInstalar.prompt();
+      promptInstalar.userChoice.then(function () { promptInstalar = null; $("instalar").hidden = true; });
+    });
+    $("instalarCerrar").addEventListener("click", function () {
+      $("instalar").hidden = true;
+      escribir(K_INSTALAR, Date.now());
+    });
+
+    // ───────── Arranque ─────────
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+    }
+    cargarApp(urlInicial());
+  })();
+  </script>
+</body>
+</html>
